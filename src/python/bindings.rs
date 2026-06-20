@@ -32,6 +32,18 @@ impl PyScene {
             Err(e) => return Err(e),
         }
     }
+
+    fn rotate(&mut self, phi: f32, theta: f32, zoom: Option<f32>) -> PyResult<()> {
+        if let Some(zoom) = zoom {
+            self.scene.camera_controller.zoom(zoom);
+        }
+        self.scene.camera_controller.rotate(phi, theta);
+        self.scene
+            .camera_controller
+            .update_camera(&mut self.scene.camera);
+
+        Ok(())
+    }
 }
 
 #[derive(FromPyObject)]
@@ -69,7 +81,7 @@ impl PyLine {
                 AnimPosition::new(end_point.0, end_point.1, end_point.2, 1.0),
                 AnimColor::new(start_color.0, start_color.1, start_color.2, start_color.3),
                 AnimColor::new(end_color.0, end_color.1, end_color.2, end_color.3),
-                AnimFloat::new(thickness),
+                AnimFloat::new(thickness / 120.0),
             ),
         }
     }
@@ -93,5 +105,13 @@ mod animotion {
     fn debug_window(scene: &Bound<'_, PyScene>) {
         let scene = scene.borrow().scene.clone();
         let _ = run(scene);
+    }
+
+    #[pymodule_init]
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add("PI", std::f32::consts::PI)?;
+        m.add("E", std::f32::consts::E)?;
+
+        Ok(())
     }
 }

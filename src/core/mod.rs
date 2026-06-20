@@ -1,6 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::PrimitiveTopology;
 
+pub mod camera;
 pub mod objects;
 
 pub(crate) type Point = [f32; 4];

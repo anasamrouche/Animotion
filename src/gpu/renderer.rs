@@ -1,4 +1,5 @@
 use crate::core::AnimRender;
+use crate::core::camera::{Camera, CameraController, CameraUniform};
 use crate::{
     core::{
         Vertex,
@@ -6,8 +7,10 @@ use crate::{
     },
     gpu::context::GPUContext,
 };
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, RenderPipeline, ShaderSource, VertexBufferLayout,
+    BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer,
+    BufferDescriptor, BufferUsages, RenderPipeline, ShaderSource, ShaderStages, VertexBufferLayout,
 };
 
 pub struct BufferPack {
@@ -33,29 +36,23 @@ pub struct Renderer {
     pub surfaces_pipeline: RenderPipeline,
     pub curves_buffer: BufferPack,
     pub surfaces_buffer: BufferPack,
+    pub camera_uniform: CameraUniform,
+    pub camera_buffer: Buffer,
+    pub camera_bind_group: BindGroup,
 }
 
 impl Renderer {
     pub fn new(context: &GPUContext) -> Self {
-        let render_pipeline_layout =
-            context
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[],
-                    immediate_size: 0,
-                });
-
         let curves_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Curves Vertex Buffer"),
-            size: 1024,
+            size: 4096,
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let curves_index_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Curves Index Buffer"),
-            size: 1024,
+            size: 4096,
             usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -66,6 +63,53 @@ impl Renderer {
                 label: None,
                 source: ShaderSource::Wgsl(include_str!("./shader.wgsl").into()),
             });
+
+        let surfaces_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
+            label: Some("Surfaces Vertex Buffer"),
+            size: 4096,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let surfaces_index_buffer = context.device.create_buffer(&BufferDescriptor {
+            label: Some("Surfaces Index Buffer"),
+            size: 4096,
+            usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let camera_uniform = CameraUniform::new();
+        let camera_buffer = context.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera buffer descriptor"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("Camera bind groupe layout"),
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+
+        let render_pipeline_layout =
+            context
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Render Pipeline Layout"),
+                    bind_group_layouts: &[Some(&camera_bind_group_layout)],
+                    immediate_size: 0,
+                });
 
         let curves_pipeline =
             context
@@ -117,19 +161,16 @@ impl Renderer {
                     cache: None,
                 });
 
-        let surfaces_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Surfaces Vertex Buffer"),
-            size: 1024,
-            usage: BufferUsages::VERTEX,
-            mapped_at_creation: false,
-        });
-
-        let surfaces_index_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Surfaces Index Buffer"),
-            size: 1024,
-            usage: BufferUsages::INDEX,
-            mapped_at_creation: false,
-        });
+        let camera_bind_group = context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Camera bind group"),
+                layout: &camera_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                }],
+            });
 
         let surfaces_pipeline =
             context
@@ -189,10 +230,13 @@ impl Renderer {
             surfaces_pipeline,
             curves_buffer,
             surfaces_buffer,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
         }
     }
 
-    pub fn render(&mut self, context: &GPUContext, scene: &Scene) -> anyhow::Result<()> {
+    pub fn render(&mut self, context: &GPUContext, scene: &mut Scene) -> anyhow::Result<()> {
         let output = match context.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(surface_texture) => surface_texture,
             wgpu::CurrentSurfaceTexture::Suboptimal(surface_texture) => {
@@ -204,7 +248,6 @@ impl Renderer {
             wgpu::CurrentSurfaceTexture::Timeout
             | wgpu::CurrentSurfaceTexture::Occluded
             | wgpu::CurrentSurfaceTexture::Validation => {
-                // Skip this frame
                 return Ok(());
             }
             wgpu::CurrentSurfaceTexture::Outdated => {
@@ -230,20 +273,32 @@ impl Renderer {
 
         self.curves_buffer.vertices_vec.clear();
         self.curves_buffer.indices_vec.clear();
+        self.surfaces_buffer.vertices_vec.clear();
+        self.surfaces_buffer.indices_vec.clear();
 
         for object in &scene.objects {
             match object {
                 AnimObject::Line(line) => {
-                    let vertex_count = self.curves_buffer.vertices_vec.len() as u32;
+                    let vertex_count = self.surfaces_buffer.vertices_vec.len() as u32;
 
-                    self.curves_buffer.vertices_vec.extend(line.get_vertices());
+                    self.surfaces_buffer
+                        .vertices_vec
+                        .extend(line.get_vertices());
                     let prim_object_indices = line.get_indices();
                     let object_indices = prim_object_indices.iter().map(|i| i + vertex_count);
-                    self.curves_buffer.indices_vec.extend(object_indices);
+                    self.surfaces_buffer.indices_vec.extend(object_indices);
                 }
             }
         }
 
+        scene.camera_controller.update_camera(&mut scene.camera);
+        self.camera_uniform.update_view(&scene.camera);
+
+        context.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
         context.queue.write_buffer(
             &self.curves_buffer.vertex_buffer,
             0,
@@ -253,6 +308,16 @@ impl Renderer {
             &self.curves_buffer.index_buffer,
             0,
             bytemuck::cast_slice(&self.curves_buffer.indices_vec),
+        );
+        context.queue.write_buffer(
+            &self.surfaces_buffer.vertex_buffer,
+            0,
+            bytemuck::cast_slice(&self.surfaces_buffer.vertices_vec),
+        );
+        context.queue.write_buffer(
+            &self.surfaces_buffer.index_buffer,
+            0,
+            bytemuck::cast_slice(&self.surfaces_buffer.indices_vec),
         );
 
         {
@@ -279,20 +344,24 @@ impl Renderer {
                 multiview_mask: None,
             });
 
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_pipeline(&self.curves_pipeline);
             render_pass.set_vertex_buffer(0, self.curves_buffer.vertex_buffer.slice(..));
-            render_pass.draw(0..self.curves_buffer.vertices_vec.len() as u32, 0..1);
             render_pass.set_index_buffer(
                 self.curves_buffer.index_buffer.slice(..),
                 wgpu::IndexFormat::Uint32,
             );
+            render_pass.draw_indexed(0..self.curves_buffer.indices_vec.len() as u32, 0, 0..1);
+
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_pipeline(&self.surfaces_pipeline);
             render_pass.set_vertex_buffer(0, self.surfaces_buffer.vertex_buffer.slice(..));
-            render_pass.draw(0..self.surfaces_buffer.vertices_vec.len() as u32, 0..1);
             render_pass.set_index_buffer(
                 self.surfaces_buffer.index_buffer.slice(..),
                 wgpu::IndexFormat::Uint32,
             );
+            render_pass.draw_indexed(0..self.surfaces_buffer.indices_vec.len() as u32, 0, 0..1);
+            println!("{:?}", self.surfaces_buffer.vertices_vec);
         }
 
         context.queue.submit(std::iter::once(encoder.finish()));

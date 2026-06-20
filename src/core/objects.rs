@@ -15,10 +15,10 @@ pub(crate) mod primitives {
 
     #[derive(Clone)]
     pub(crate) struct AnimPosition {
-        x: AnimFloat,
-        y: AnimFloat,
-        z: AnimFloat,
-        w: AnimFloat,
+        pub x: AnimFloat,
+        pub y: AnimFloat,
+        pub z: AnimFloat,
+        pub w: AnimFloat,
     }
 
     impl AnimPosition {
@@ -80,6 +80,8 @@ pub(crate) mod objects {
     use super::primitives::{AnimColor, AnimFloat, AnimPosition};
     use crate::core::AnimRender;
     use crate::core::Vertex;
+    use crate::core::camera::Camera;
+    use crate::core::camera::CameraController;
 
     #[derive(Clone)]
     pub(crate) enum AnimObject {
@@ -88,25 +90,60 @@ pub(crate) mod objects {
 
     #[derive(Clone)]
     pub(crate) struct Line {
-        start_point: AnimPosition,
-        end_point: AnimPosition,
-        start_color: AnimColor,
+        pub start_point: AnimPosition,
+        pub end_point: AnimPosition,
+        pub start_color: AnimColor,
         end_color: AnimColor,
         thickness: AnimFloat,
     }
 
     impl AnimRender for Line {
-        const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::LineList;
+        const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::TriangleList;
 
         fn get_vertices(&self) -> Vec<Vertex> {
+            let t = self.thickness.value() / 2.0;
+            let dx = self.end_point.x.value() - self.start_point.x.value();
+            let dy = self.end_point.y.value() - self.start_point.y.value();
+            let len = (dx * dx + dy * dy).sqrt();
+            let normal = [dy / len, -dx / len, 0.0, 0.0];
+
+            let start_point = self.start_point.to_array();
+            let v11 = [
+                start_point[0] + normal[0] * t,
+                start_point[1] + normal[1] * t,
+                start_point[2] + normal[2] * t,
+                start_point[3] + normal[3] * t,
+            ];
+            let v12 = [
+                start_point[0] - normal[0] * t,
+                start_point[1] - normal[1] * t,
+                start_point[2] - normal[2] * t,
+                start_point[3] - normal[3] * t,
+            ];
+            let end_point = self.end_point.to_array();
+            let v21 = [
+                end_point[0] + normal[0] * t,
+                end_point[1] + normal[1] * t,
+                end_point[2] + normal[2] * t,
+                end_point[3] + normal[3] * t,
+            ];
+            let v22 = [
+                end_point[0] - normal[0] * t,
+                end_point[1] - normal[1] * t,
+                end_point[2] - normal[2] * t,
+                end_point[3] - normal[3] * t,
+            ];
+
             vec![
-                Vertex::new(self.start_point.to_array(), self.start_color.to_array()),
-                Vertex::new(self.end_point.to_array(), self.end_color.to_array()),
+                Vertex::new(v11, self.start_color.to_array()),
+                Vertex::new(v12, self.start_color.to_array()),
+                Vertex::new(v21, self.end_color.to_array()),
+                Vertex::new(v22, self.end_color.to_array()),
             ]
         }
 
         fn get_indices(&self) -> Vec<u32> {
-            Vec::from([0, 1])
+            Vec::from([0, 1, 2, 2, 3, 1])
         }
     }
 
@@ -132,6 +169,8 @@ pub(crate) mod objects {
     pub struct Scene {
         pub objects: Vec<AnimObject>,
         pub background_color: AnimColor,
+        pub camera: Camera,
+        pub camera_controller: CameraController,
     }
 
     impl Scene {
@@ -139,6 +178,8 @@ pub(crate) mod objects {
             Self {
                 objects,
                 background_color,
+                camera: Camera::new(),
+                camera_controller: CameraController::new(),
             }
         }
 

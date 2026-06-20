@@ -18,12 +18,6 @@ impl<'a> State<'a> {
     }
 
     async fn new(window: Arc<Window>, scene: Scene) -> Self {
-        // Adapter
-        // let adapter = instance
-        //     .request_adapter(&wgpu::RequestAdapterOptions::default())
-        //     .await
-        //     .unwrap();
-
         let context = GPUContext::new(window.clone()).await;
         context
             .surface
@@ -40,7 +34,7 @@ impl<'a> State<'a> {
     }
 
     pub fn render(&mut self) {
-        let rend = self.renderer.render(&mut self.context, &self.scene);
+        let rend = self.renderer.render(&mut self.context, &mut self.scene);
         match rend {
             Err(err) => eprintln!("Render error: {}", err),
             Ok(_) => {}
