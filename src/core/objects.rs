@@ -1,4 +1,6 @@
+use crate::core::{AnimRender, Vertex};
 use std::sync::{Arc, Mutex};
+use wgpu::PrimitiveTopology;
 
 pub trait DynamicObject {
     fn notify(&self, object: AnimObject, callback: Arc<dyn Fn(AnimObject) + Send + Sync>);
@@ -119,12 +121,6 @@ impl AnimColor {
     }
 }
 
-use crate::core::AnimRender;
-use crate::core::Vertex;
-use crate::core::camera::Camera;
-use crate::core::camera::CameraController;
-use wgpu::PrimitiveTopology;
-
 #[derive(Clone)]
 pub(crate) enum AnimObject {
     #[allow(unused)]
@@ -206,38 +202,5 @@ impl Line {
             end_color,
             thickness,
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct Scene {
-    pub objects: Vec<AnimObject>,
-    pub background_color: AnimColor,
-    pub camera: Camera,
-    pub camera_controller: CameraController,
-}
-
-impl Scene {
-    pub fn new(objects: Vec<AnimObject>, background_color: AnimColor) -> Self {
-        Self {
-            objects,
-            background_color,
-            camera: Camera::new(),
-            camera_controller: CameraController::new(),
-        }
-    }
-
-    pub(crate) fn add_object(&mut self, object: AnimObject) {
-        self.objects.push(object);
-    }
-
-    pub fn background_color_f64(&self) -> [f64; 4] {
-        let color = self.background_color.to_array();
-        [
-            color[0] as f64,
-            color[1] as f64,
-            color[2] as f64,
-            color[3] as f64,
-        ]
     }
 }

@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use pyo3::prelude::*;
 
-use crate::core::objects::{
-    AnimColor, AnimFloat, AnimObject, AnimPosition, Line, Scene as RustScene,
+use crate::core::{
+    objects::{AnimColor, AnimFloat, AnimObject, AnimPosition, Line},
+    scene::Scene as RustScene,
 };
 
 #[pyclass(name = "Scene")]
@@ -14,11 +15,12 @@ struct PyScene {
 #[pymethods]
 impl PyScene {
     #[new]
-    fn new(background_color: [f32; 4]) -> Self {
+    fn new(background_color: [f32; 4], fps: u8) -> Self {
         Self {
             scene: RustScene::new(
                 vec![],
                 AnimColor::from_array(background_color, Arc::from(|_| {})),
+                fps,
             ),
         }
     }
@@ -121,8 +123,8 @@ mod animotion {
     use super::{PyLine, PyScene};
 
     #[pyfunction]
-    fn create_scene(background_color: [f32; 4]) -> PyResult<PyScene> {
-        let scene = PyScene::new(background_color);
+    fn create_scene(background_color: [f32; 4], fps: u8) -> PyResult<PyScene> {
+        let scene = PyScene::new(background_color, fps);
         Ok(scene)
     }
 

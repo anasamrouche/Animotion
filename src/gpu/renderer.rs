@@ -1,10 +1,7 @@
 use crate::core::AnimRender;
 use crate::core::camera::CameraUniform;
 use crate::{
-    core::{
-        Vertex,
-        objects::{AnimObject, Scene},
-    },
+    core::{Vertex, objects::AnimObject, scene::Scene},
     gpu::context::GPUContext,
 };
 use wgpu::util::{BufferInitDescriptor, DeviceExt};

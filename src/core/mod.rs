@@ -3,6 +3,8 @@ use wgpu::PrimitiveTopology;
 
 pub mod camera;
 pub mod objects;
+pub mod scene;
+pub mod time;
 
 pub(crate) type Point = [f32; 4];
 

@@ -1,4 +1,4 @@
-use crate::core::objects::Scene;
+use crate::core::scene::Scene;
 use crate::gpu::context::GPUContext;
 use crate::gpu::renderer::{self, Renderer};
 use std::sync::Arc;

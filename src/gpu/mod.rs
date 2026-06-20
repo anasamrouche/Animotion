@@ -1,4 +1,4 @@
-use crate::{core::objects::Scene, gpu::view::App};
+use crate::{core::scene::Scene, gpu::view::App};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use winit::{self, event_loop::EventLoop};
@@ -6,7 +6,6 @@ use winit::{self, event_loop::EventLoop};
 pub mod context;
 pub mod renderer;
 pub mod view;
-pub mod wgpuctl;
 
 pub fn run(scene: Scene) -> PyResult<()> {
     env_logger::init();
