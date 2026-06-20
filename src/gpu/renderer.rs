@@ -1,9 +1,9 @@
 use crate::core::AnimRender;
-use crate::core::camera::{Camera, CameraController, CameraUniform};
+use crate::core::camera::CameraUniform;
 use crate::{
     core::{
         Vertex,
-        objects::objects::{AnimObject, Scene},
+        objects::{AnimObject, Scene},
     },
     gpu::context::GPUContext,
 };
@@ -288,6 +288,7 @@ impl Renderer {
                     let object_indices = prim_object_indices.iter().map(|i| i + vertex_count);
                     self.surfaces_buffer.indices_vec.extend(object_indices);
                 }
+                _ => {}
             }
         }
 

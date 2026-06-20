@@ -1,11 +1,9 @@
+use std::sync::Arc;
+
 use pyo3::prelude::*;
 
-use crate::{
-    core::objects::objects::Scene as RustScene,
-    core::objects::{
-        objects::{AnimObject, Line},
-        primitives::{AnimColor, AnimFloat, AnimPosition},
-    },
+use crate::core::objects::{
+    AnimColor, AnimFloat, AnimObject, AnimPosition, Line, Scene as RustScene,
 };
 
 #[pyclass(name = "Scene")]
@@ -18,7 +16,10 @@ impl PyScene {
     #[new]
     fn new(background_color: [f32; 4]) -> Self {
         Self {
-            scene: RustScene::new(vec![], AnimColor::from_array(background_color)),
+            scene: RustScene::new(
+                vec![],
+                AnimColor::from_array(background_color, Arc::from(|_| {})),
+            ),
         }
     }
 
@@ -77,11 +78,35 @@ impl PyLine {
     ) -> Self {
         Self {
             inner: Line::new(
-                AnimPosition::new(start_point.0, start_point.1, start_point.2, 1.0),
-                AnimPosition::new(end_point.0, end_point.1, end_point.2, 1.0),
-                AnimColor::new(start_color.0, start_color.1, start_color.2, start_color.3),
-                AnimColor::new(end_color.0, end_color.1, end_color.2, end_color.3),
-                AnimFloat::new(thickness / 120.0),
+                AnimPosition::new(
+                    start_point.0,
+                    start_point.1,
+                    start_point.2,
+                    1.0,
+                    Arc::from(|_| {}),
+                ),
+                AnimPosition::new(
+                    end_point.0,
+                    end_point.1,
+                    end_point.2,
+                    1.0,
+                    Arc::from(|_| {}),
+                ),
+                AnimColor::new(
+                    start_color.0,
+                    start_color.1,
+                    start_color.2,
+                    start_color.3,
+                    Arc::from(|_| {}),
+                ),
+                AnimColor::new(
+                    end_color.0,
+                    end_color.1,
+                    end_color.2,
+                    end_color.3,
+                    Arc::from(|_| {}),
+                ),
+                AnimFloat::new(thickness / 120.0, Arc::from(|_| {})),
             ),
         }
     }

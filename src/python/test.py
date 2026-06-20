@@ -13,7 +13,7 @@ line2 = animotion.Line(
     end_point=(-0.5, 0.5, 1),
     start_color=(1, 0, 0, 1),
     end_color=(0, 1, 0, 1),
-    thickness=2.0,
+    thickness=1.0,
 )
 scene.add_object(line)
 scene.add_object(line2)
