@@ -2,6 +2,7 @@ use crate::core::scene::Scene;
 use crate::gpu::context::GPUContext;
 use crate::gpu::renderer::{self, Renderer};
 use std::sync::Arc;
+use winit::keyboard::KeyCode;
 use winit::{application::ApplicationHandler, event_loop::ActiveEventLoop, window::Window};
 
 pub(crate) struct State<'a> {
@@ -100,9 +101,31 @@ impl<'a> ApplicationHandler for App<'a> {
             }
             winit::event::WindowEvent::RedrawRequested => {
                 let _ = state.render();
-                // Emits a new redraw requested event.
                 state.window.request_redraw();
                 state.update();
+            }
+            winit::event::WindowEvent::KeyboardInput {
+                device_id,
+                event,
+                is_synthetic,
+            } => {
+                let physical_key = event.physical_key;
+
+                match physical_key {
+                    winit::keyboard::PhysicalKey::Code(KeyCode::ArrowLeft) => {
+                        state.scene.camera_controller.rotate(0.0, 0.05)
+                    }
+                    winit::keyboard::PhysicalKey::Code(KeyCode::ArrowRight) => {
+                        state.scene.camera_controller.rotate(0.0, -0.05)
+                    }
+                    winit::keyboard::PhysicalKey::Code(KeyCode::ArrowUp) => {
+                        state.scene.camera_controller.rotate(0.05, 0.0)
+                    }
+                    winit::keyboard::PhysicalKey::Code(KeyCode::ArrowDown) => {
+                        state.scene.camera_controller.rotate(-0.05, 0.0)
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }

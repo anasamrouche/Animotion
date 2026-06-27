@@ -126,6 +126,7 @@ pub(crate) enum AnimObject {
     #[allow(unused)]
     AnimFloat(AnimFloat),
     Line(Line),
+    Tetrahedron(Tetrahedron),
 }
 
 #[derive(Clone)]
@@ -202,5 +203,51 @@ impl Line {
             end_color,
             thickness,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Tetrahedron {
+    position: AnimPosition,
+    color: (AnimColor, AnimColor, AnimColor, AnimColor),
+    size: AnimFloat,
+}
+
+impl Tetrahedron {
+    pub fn new(
+        position: AnimPosition,
+        color: (AnimColor, AnimColor, AnimColor, AnimColor),
+        size: AnimFloat,
+    ) -> Self {
+        Self {
+            position,
+            color: (color.0, color.1, color.2, color.3),
+            size,
+        }
+    }
+}
+
+impl AnimRender for Tetrahedron {
+    const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::TriangleList;
+
+    fn get_vertices(&self) -> Vec<Vertex> {
+        let s = self.size.get_value();
+        let s2 = s / 2.0f32.sqrt();
+        let center = self.position.to_array();
+
+        let pos1 = [center[0] + s2, center[1] + s2, center[2] + s2, center[3]];
+        let pos2 = [center[0] - s2, center[1] + s2, center[2] + s2, center[3]];
+        let pos3 = [center[0], center[1] - s2, center[2] + s2, center[3]];
+
+        vec![
+            Vertex::new(pos1, self.color.0.to_array()),
+            Vertex::new(pos2, self.color.1.to_array()),
+            Vertex::new(pos3, self.color.2.to_array()),
+            Vertex::new(center, self.color.3.to_array()),
+        ]
+    }
+
+    fn get_indices(&self) -> Vec<u32> {
+        Vec::from([0, 1, 3, 0, 2, 3, 1, 2, 3, 1, 3, 0])
     }
 }

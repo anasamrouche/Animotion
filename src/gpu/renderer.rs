@@ -7,7 +7,8 @@ use crate::{
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer,
-    BufferDescriptor, BufferUsages, RenderPipeline, ShaderSource, ShaderStages, VertexBufferLayout,
+    BufferDescriptor, BufferUsages, DepthStencilState, RenderPipeline, ShaderSource, ShaderStages,
+    TextureFormat, VertexBufferLayout,
 };
 
 pub struct BufferPack {
@@ -149,10 +150,18 @@ impl Renderer {
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::LineList,
                         strip_index_format: None,
+                        cull_mode: Some(wgpu::Face::Front),
+                        front_face: wgpu::FrontFace::Cw,
                         ..Default::default()
                     },
 
-                    depth_stencil: None,
+                    depth_stencil: Some(DepthStencilState {
+                        format: TextureFormat::Depth32Float,
+                        depth_write_enabled: Some(true),
+                        depth_compare: Some(wgpu::CompareFunction::Less),
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
                     multisample: wgpu::MultisampleState::default(),
                     multiview_mask: None,
                     cache: None,
@@ -213,7 +222,13 @@ impl Renderer {
                         ..Default::default()
                     },
 
-                    depth_stencil: None,
+                    depth_stencil: Some(DepthStencilState {
+                        format: TextureFormat::Depth32Float,
+                        depth_write_enabled: Some(true),
+                        depth_compare: Some(wgpu::CompareFunction::Less),
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
                     multisample: wgpu::MultisampleState::default(),
                     multiview_mask: None,
                     cache: None,
@@ -285,7 +300,17 @@ impl Renderer {
                     let object_indices = prim_object_indices.iter().map(|i| i + vertex_count);
                     self.surfaces_buffer.indices_vec.extend(object_indices);
                 }
-                _ => {}
+                AnimObject::Tetrahedron(tetrahedron) => {
+                    let vertex_count = self.surfaces_buffer.vertices_vec.len() as u32;
+
+                    self.surfaces_buffer
+                        .vertices_vec
+                        .extend(tetrahedron.get_vertices());
+                    let prim_object_indices = tetrahedron.get_indices();
+                    let object_indices = prim_object_indices.iter().map(|i| i + vertex_count);
+                    self.surfaces_buffer.indices_vec.extend(object_indices);
+                }
+                AnimObject::AnimFloat(_) => {}
             }
         }
 
@@ -336,7 +361,14 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &context.depth_texture,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
                 multiview_mask: None,
@@ -359,7 +391,6 @@ impl Renderer {
                 wgpu::IndexFormat::Uint32,
             );
             render_pass.draw_indexed(0..self.surfaces_buffer.indices_vec.len() as u32, 0, 0..1);
-            println!("{:?}", self.surfaces_buffer.vertices_vec);
         }
 
         context.queue.submit(std::iter::once(encoder.finish()));

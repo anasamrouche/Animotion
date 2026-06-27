@@ -3,7 +3,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 
 use crate::core::{
-    objects::{AnimColor, AnimFloat, AnimObject, AnimPosition, Line},
+    objects::{AnimColor, AnimFloat, AnimObject, AnimPosition, Line, Tetrahedron},
     scene::Scene as RustScene,
 };
 
@@ -52,12 +52,14 @@ impl PyScene {
 #[derive(FromPyObject)]
 enum PyAnimObject {
     Line(PyLine),
+    Tetrahedron(PyTetrahedron),
 }
 
 impl From<PyAnimObject> for AnimObject {
     fn from(pyobject: PyAnimObject) -> Self {
         match pyobject {
             PyAnimObject::Line(line) => AnimObject::Line(line.inner),
+            PyAnimObject::Tetrahedron(tetrahedron) => AnimObject::Tetrahedron(tetrahedron.inner),
         }
     }
 }
@@ -114,13 +116,62 @@ impl PyLine {
     }
 }
 
+#[pyclass(from_py_object, name = "Tetrahedron")]
+#[derive(Clone)]
+struct PyTetrahedron {
+    inner: Tetrahedron,
+}
+
+#[pymethods]
+impl PyTetrahedron {
+    #[new]
+    fn new(position: [f32; 3], color: ([f32; 4], [f32; 4], [f32; 4], [f32; 4]), size: f32) -> Self {
+        Self {
+            inner: Tetrahedron::new(
+                AnimPosition::new(position[0], position[1], position[2], 1.0, Arc::new(|_| {})),
+                (
+                    AnimColor::new(
+                        color.0[0],
+                        color.0[1],
+                        color.0[2],
+                        color.0[3],
+                        Arc::new(|_| {}),
+                    ),
+                    AnimColor::new(
+                        color.1[0],
+                        color.1[1],
+                        color.1[2],
+                        color.1[3],
+                        Arc::new(|_| {}),
+                    ),
+                    AnimColor::new(
+                        color.2[0],
+                        color.2[1],
+                        color.2[2],
+                        color.2[3],
+                        Arc::new(|_| {}),
+                    ),
+                    AnimColor::new(
+                        color.3[0],
+                        color.3[1],
+                        color.3[2],
+                        color.3[3],
+                        Arc::new(|_| {}),
+                    ),
+                ),
+                AnimFloat::new(size, Arc::new(|_| {})),
+            ),
+        }
+    }
+}
+
 #[pymodule]
 mod animotion {
     use super::*;
     use crate::gpu::run;
 
     #[pymodule_export]
-    use super::{PyLine, PyScene};
+    use super::{PyLine, PyScene, PyTetrahedron};
 
     #[pyfunction]
     fn create_scene(background_color: [f32; 4], fps: u8) -> PyResult<PyScene> {

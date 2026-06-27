@@ -1,6 +1,6 @@
 import animotion
 
-scene = animotion.create_scene([1.0, 0.5, 0.5, 1.0])
+scene = animotion.create_scene([1.0, 0.5, 0.5, 1.0], 60)
 line = animotion.Line(
     start_point=(0, 0, 1),
     end_point=(0.5, 0.5, 1),
@@ -15,8 +15,14 @@ line2 = animotion.Line(
     end_color=(0, 1, 0, 1),
     thickness=1.0,
 )
+tetra = animotion.Tetrahedron(
+    (0, 0, 0),
+    size=1,
+    color=([0, 0, 1, 1], [0, 1, 0, 1], [1, 0, 0, 1], [0, 0, 0, 1]),
+)
 scene.add_object(line)
 scene.add_object(line2)
+scene.add_object(tetra)
 
 animotion.debug_window(scene)
 

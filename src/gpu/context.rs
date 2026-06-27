@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use wgpu::{Device, Queue, Surface, SurfaceConfiguration};
+use wgpu::{
+    Device, Queue, Surface, SurfaceConfiguration, Texture, TextureFormat, TextureUsages,
+    TextureView,
+    wgt::{TextureDescriptor, TextureViewDescriptor},
+};
 use winit::window::Window;
 
 pub struct GPUContext<'a> {
@@ -8,6 +12,7 @@ pub struct GPUContext<'a> {
     pub queue: Queue,
     pub surface: Surface<'a>,
     pub surface_config: SurfaceConfiguration,
+    pub depth_texture: TextureView,
 }
 
 impl<'a> GPUContext<'a> {
@@ -37,7 +42,6 @@ impl<'a> GPUContext<'a> {
         let surface_caps = surface.get_capabilities(&adapter);
         let surface_format = surface_caps.formats[0];
 
-        // Defines how a Surface creates a SurfaceTexture.
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
@@ -49,11 +53,27 @@ impl<'a> GPUContext<'a> {
             view_formats: vec![],
         };
 
+        let depth_texture = device.create_texture(&TextureDescriptor {
+            label: Some("Depth texture"),
+            size: wgpu::Extent3d {
+                width: size.width,
+                height: size.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
         Self {
             device,
             queue,
             surface,
             surface_config,
+            depth_texture: depth_texture.create_view(&TextureViewDescriptor::default()),
         }
     }
 }
