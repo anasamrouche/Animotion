@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
-use std::f32::consts::PI;
+use std::{f32::consts::PI, num::FpCategory::Nan};
 
 #[derive(Clone)]
 pub struct Camera {
@@ -68,8 +68,6 @@ impl CameraController {
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
-        // Blocage de l'angle polaire pour éviter le "Gimbal Lock"
-        // On empêche la caméra de passer pile au-dessus ou en dessous (0 ou PI)
         let safe_phi = self.phi.clamp(0.01, PI - 0.01);
 
         let x = self.radius * safe_phi.sin() * self.theta.cos();
@@ -86,8 +84,6 @@ impl CameraController {
 
     pub fn zoom(&mut self, amount: f32) {
         self.radius -= amount;
-        if self.radius < 0.1 {
-            self.radius = 0.1;
-        }
+        self.radius = self.radius.clamp(0.1, 100.0);
     }
 }

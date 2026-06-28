@@ -124,6 +124,12 @@ impl<'a> ApplicationHandler for App<'a> {
                     winit::keyboard::PhysicalKey::Code(KeyCode::ArrowDown) => {
                         state.scene.camera_controller.rotate(-0.05, 0.0)
                     }
+                    winit::keyboard::PhysicalKey::Code(KeyCode::KeyA) => {
+                        state.scene.camera_controller.zoom(-0.05)
+                    }
+                    winit::keyboard::PhysicalKey::Code(KeyCode::KeyZ) => {
+                        state.scene.camera_controller.zoom(0.05)
+                    }
                     _ => {}
                 }
             }

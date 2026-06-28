@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use wgpu::{
-    Device, Queue, Surface, SurfaceConfiguration, Texture, TextureFormat, TextureUsages,
-    TextureView,
+    Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView,
     wgt::{TextureDescriptor, TextureViewDescriptor},
 };
 use winit::window::Window;
