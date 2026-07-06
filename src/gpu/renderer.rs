@@ -76,7 +76,7 @@ impl Renderer {
 
         let surfaces_index_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Surfaces Index Buffer"),
-            size: 4096 * 2u32.pow(5) as u64,
+            size: 2u64.pow(26),
             usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -105,12 +105,47 @@ impl Renderer {
                     }],
                 });
 
+        let time = Time::new(fps);
+        let time_buffer = context.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Time Buffer"),
+            contents: bytemuck::cast_slice(&[time]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let time_bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("Time Bind Group Layout"),
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: NonZero::new(8),
+                        },
+                        count: None,
+                    }],
+                });
+
+        let time_bind_group = context.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Time Bind Group"),
+            layout: &time_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: time_buffer.as_entire_binding(),
+            }],
+        });
+
         let render_pipeline_layout =
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[Some(&camera_bind_group_layout)],
+                    bind_group_layouts: &[
+                        Some(&camera_bind_group_layout),
+                        Some(&time_bind_group_layout),
+                    ],
                     immediate_size: 0,
                 });
 
@@ -239,38 +274,6 @@ impl Renderer {
 
         let curves_buffer = BufferPack::new(curves_vertex_buffer, curves_index_buffer);
         let surfaces_buffer = BufferPack::new(surfaces_vertex_buffer, surfaces_index_buffer);
-
-        let time = Time::new(fps);
-        let time_buffer = context.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Time Buffer"),
-            contents: bytemuck::cast_slice(&[time]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-        let time_bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                    label: Some("Time Bind Group Layout"),
-                    entries: &[BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: NonZero::new(8),
-                        },
-                        count: None,
-                    }],
-                });
-
-        let time_bind_group = context.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Time Bind Group"),
-            layout: &time_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 1,
-                resource: time_buffer.as_entire_binding(),
-            }],
-        });
 
         Self {
             curves_pipeline,

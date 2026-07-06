@@ -290,6 +290,7 @@ impl AnimRender for Sphere {
         for i in 0..=self.resolution {
             let v = i as f32 / self.resolution as f32;
             let phi = v * PI;
+            let uvs: [[f32; 2]; 3] = [[0.0, 0.0], [0.5, 0.0], [1.0, 1.0]];
 
             for j in 0..=self.resolution {
                 let u = j as f32 / self.resolution as f32;

@@ -24,7 +24,7 @@ scene.add_object(line)
 scene.add_object(line2)
 # scene.add_object(tetra)
 #
-sphere = animotion.Sphere([0.0, 0.0, 0.0], [1.0, 0.0, 0.2, 1.0], 0.2, 50)
+sphere = animotion.Sphere([0.0, 0.0, 0.0], [1.0, 0.0, 0.2, 1.0], 0.5, 500)
 scene.add_object(sphere)
 
 animotion.debug_window(scene)
