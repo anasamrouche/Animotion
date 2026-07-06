@@ -1,5 +1,8 @@
 use crate::core::{AnimRender, Vertex};
-use std::sync::{Arc, Mutex};
+use std::{
+    f32::consts::{PI, TAU},
+    sync::{Arc, Mutex},
+};
 use wgpu::PrimitiveTopology;
 
 pub trait DynamicObject {
@@ -126,6 +129,7 @@ pub(crate) enum AnimObject {
     #[allow(unused)]
     AnimFloat(AnimFloat),
     Line(Line),
+    Sphere(Sphere),
     Tetrahedron(Tetrahedron),
 }
 
@@ -249,5 +253,78 @@ impl AnimRender for Tetrahedron {
 
     fn get_indices(&self) -> Vec<u32> {
         Vec::from([0, 1, 3, 0, 2, 3, 1, 2, 3, 1, 3, 0])
+    }
+}
+
+#[derive(Clone)]
+pub struct Sphere {
+    position: AnimPosition,
+    radius: AnimFloat,
+    color: AnimColor,
+    resolution: u32,
+}
+
+impl Sphere {
+    pub fn new(position: [f32; 4], radius: f32, color: [f32; 4], resolution: u32) -> Self {
+        Self {
+            position: AnimPosition::new(
+                position[0],
+                position[1],
+                position[2],
+                position[3],
+                Arc::from(|_| {}),
+            ),
+            radius: AnimFloat::new(radius, Arc::from(|_| {})),
+            color: AnimColor::new(color[0], color[1], color[2], color[3], Arc::new(|_| {})),
+            resolution,
+        }
+    }
+}
+
+impl AnimRender for Sphere {
+    const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::TriangleList;
+
+    fn get_vertices(&self) -> Vec<Vertex> {
+        let mut vertices = Vec::new();
+
+        for i in 0..=self.resolution {
+            let v = i as f32 / self.resolution as f32;
+            let phi = v * PI;
+
+            for j in 0..=self.resolution {
+                let u = j as f32 / self.resolution as f32;
+                let theta = u * TAU;
+
+                let x = self.radius.get_value() * phi.sin() * theta.cos();
+                let y = self.radius.get_value() * phi.cos();
+                let z = self.radius.get_value() * phi.sin() * theta.sin();
+
+                vertices.push(Vertex::new([x, y, z, 1.0], self.color.to_array()));
+            }
+        }
+        vertices
+    }
+
+    fn get_indices(&self) -> Vec<u32> {
+        let mut indices = Vec::new();
+        for i in 0..self.resolution {
+            for j in 0..self.resolution {
+                let p1 = i * (self.resolution + 1) + j;
+                let p2 = p1 + (self.resolution + 1);
+
+                if i != 0 {
+                    indices.push(p1);
+                    indices.push(p2);
+                    indices.push(p1 + 1);
+                }
+
+                if i != self.resolution - 1 {
+                    indices.push(p1 + 1);
+                    indices.push(p2);
+                    indices.push(p2 + 1);
+                }
+            }
+        }
+        indices
     }
 }

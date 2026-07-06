@@ -1,11 +1,14 @@
-#[derive(Clone)]
+use bytemuck::{Pod, Zeroable};
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Time {
     value: f32,
-    fps: u8,
+    fps: u32,
 }
 
 impl Time {
-    pub fn new(fps: u8) -> Self {
+    pub fn new(fps: u32) -> Self {
         Self { value: 0.0, fps }
     }
 
@@ -13,11 +16,11 @@ impl Time {
         self.value += dt;
     }
 
-    pub fn value(&self) -> f32 {
+    pub fn get_value(&self) -> f32 {
         self.value
     }
 
-    pub fn fps(&self) -> u8 {
+    pub fn get_fps(&self) -> u32 {
         self.fps
     }
 }

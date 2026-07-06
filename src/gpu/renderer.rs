@@ -1,14 +1,17 @@
+use std::num::NonZero;
+
 use crate::core::AnimRender;
 use crate::core::camera::CameraUniform;
+use crate::core::time::Time;
 use crate::{
     core::{Vertex, objects::AnimObject, scene::Scene},
     gpu::context::GPUContext,
 };
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer,
-    BufferDescriptor, BufferUsages, DepthStencilState, RenderPipeline, ShaderSource, ShaderStages,
-    TextureFormat, VertexBufferLayout,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferDescriptor, BufferUsages, DepthStencilState,
+    RenderPipeline, ShaderSource, ShaderStages, TextureFormat, VertexBufferLayout,
 };
 
 pub struct BufferPack {
@@ -37,20 +40,22 @@ pub struct Renderer {
     pub camera_uniform: CameraUniform,
     pub camera_buffer: Buffer,
     pub camera_bind_group: BindGroup,
+    pub time_buffer: Buffer,
+    pub time_bind_group: BindGroup,
 }
 
 impl Renderer {
-    pub fn new(context: &GPUContext) -> Self {
+    pub fn new(context: &GPUContext, fps: u32) -> Self {
         let curves_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Curves Vertex Buffer"),
-            size: 4096,
+            size: 2u64.pow(28),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let curves_index_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Curves Index Buffer"),
-            size: 4096,
+            size: 2u64.pow(26),
             usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -64,14 +69,14 @@ impl Renderer {
 
         let surfaces_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Surfaces Vertex Buffer"),
-            size: 4096,
+            size: 2u64.pow(28),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let surfaces_index_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Surfaces Index Buffer"),
-            size: 4096,
+            size: 4096 * 2u32.pow(5) as u64,
             usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -167,16 +172,14 @@ impl Renderer {
                     cache: None,
                 });
 
-        let camera_bind_group = context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Camera bind group"),
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
-                }],
-            });
+        let camera_bind_group = context.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Camera bind group"),
+            layout: &camera_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
 
         let surfaces_pipeline =
             context
@@ -237,6 +240,38 @@ impl Renderer {
         let curves_buffer = BufferPack::new(curves_vertex_buffer, curves_index_buffer);
         let surfaces_buffer = BufferPack::new(surfaces_vertex_buffer, surfaces_index_buffer);
 
+        let time = Time::new(fps);
+        let time_buffer = context.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Time Buffer"),
+            contents: bytemuck::cast_slice(&[time]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let time_bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("Time Bind Group Layout"),
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: NonZero::new(8),
+                        },
+                        count: None,
+                    }],
+                });
+
+        let time_bind_group = context.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Time Bind Group"),
+            layout: &time_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 1,
+                resource: time_buffer.as_entire_binding(),
+            }],
+        });
+
         Self {
             curves_pipeline,
             surfaces_pipeline,
@@ -245,6 +280,8 @@ impl Renderer {
             camera_uniform,
             camera_buffer,
             camera_bind_group,
+            time_buffer,
+            time_bind_group,
         }
     }
 
@@ -300,6 +337,16 @@ impl Renderer {
                     let object_indices = prim_object_indices.iter().map(|i| i + vertex_count);
                     self.surfaces_buffer.indices_vec.extend(object_indices);
                 }
+                AnimObject::Sphere(sphere) => {
+                    let vertex_count = self.surfaces_buffer.vertices_vec.len() as u32;
+
+                    self.surfaces_buffer
+                        .vertices_vec
+                        .extend(sphere.get_vertices());
+                    let prim_object_indices = sphere.get_indices();
+                    let object_indices = prim_object_indices.iter().map(|i| i + vertex_count);
+                    self.surfaces_buffer.indices_vec.extend(object_indices);
+                }
                 AnimObject::Tetrahedron(tetrahedron) => {
                     let vertex_count = self.surfaces_buffer.vertices_vec.len() as u32;
 
@@ -322,6 +369,9 @@ impl Renderer {
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
+        context
+            .queue
+            .write_buffer(&self.time_buffer, 0, bytemuck::cast_slice(&[scene.time]));
         context.queue.write_buffer(
             &self.curves_buffer.vertex_buffer,
             0,
@@ -375,6 +425,7 @@ impl Renderer {
             });
 
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.time_bind_group, &[]);
             render_pass.set_pipeline(&self.curves_pipeline);
             render_pass.set_vertex_buffer(0, self.curves_buffer.vertex_buffer.slice(..));
             render_pass.set_index_buffer(

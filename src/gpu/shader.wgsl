@@ -5,6 +5,14 @@ struct CameraUniform {
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
+struct TimeUniform {
+    time: f32,
+    fps: u32,
+};
+
+@group(0) @binding(1)
+var<uniform> time: TimeUniform;
+
 struct VertexInput {
     @location(0) position : vec4f,
     @location(1) color : vec4f,

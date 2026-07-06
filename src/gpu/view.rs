@@ -1,7 +1,7 @@
 use crate::core::scene::Scene;
 use crate::gpu::context::GPUContext;
 use crate::gpu::renderer::{self, Renderer};
-use std::sync::Arc;
+use std::{sync::Arc, thread::sleep};
 use winit::keyboard::KeyCode;
 use winit::{application::ApplicationHandler, event_loop::ActiveEventLoop, window::Window};
 
@@ -24,7 +24,7 @@ impl<'a> State<'a> {
             .surface
             .configure(&context.device, &context.surface_config);
 
-        let renderer = renderer::Renderer::new(&context);
+        let renderer = renderer::Renderer::new(&context, scene.time.get_fps());
 
         Self {
             window,
@@ -76,7 +76,6 @@ impl<'a> ApplicationHandler for App<'a> {
         let scene = self.scene.take().unwrap();
 
         self.state = Some(pollster::block_on(async {
-            // On passe la scène récupérée à l'état WGPU
             State::new(window.into(), scene).await
         }));
     }
@@ -138,7 +137,19 @@ impl<'a> ApplicationHandler for App<'a> {
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(state) = &self.state {
+        if let Some(state) = &mut self.state {
+            sleep(std::time::Duration::from_millis(
+                1000 / state.scene.time.get_fps() as u64,
+            ));
+            state
+                .scene
+                .time
+                .update(1.0 / state.scene.time.get_fps() as f32);
+            println!(
+                "{}, {}",
+                state.scene.time.get_value(),
+                state.scene.time.get_fps()
+            );
             state.window.request_redraw();
         }
     }

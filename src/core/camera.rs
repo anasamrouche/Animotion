@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
-use std::{f32::consts::PI, num::FpCategory::Nan};
+use std::f32::consts::PI;
 
 #[derive(Clone)]
 pub struct Camera {

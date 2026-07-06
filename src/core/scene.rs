@@ -14,7 +14,7 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub fn new(objects: Vec<AnimObject>, background_color: AnimColor, fps: u8) -> Self {
+    pub fn new(objects: Vec<AnimObject>, background_color: AnimColor, fps: u32) -> Self {
         Self {
             objects,
             background_color,

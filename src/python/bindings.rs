@@ -3,7 +3,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 
 use crate::core::{
-    objects::{AnimColor, AnimFloat, AnimObject, AnimPosition, Line, Tetrahedron},
+    objects::{AnimColor, AnimFloat, AnimObject, AnimPosition, Line, Sphere, Tetrahedron},
     scene::Scene as RustScene,
 };
 
@@ -15,7 +15,7 @@ struct PyScene {
 #[pymethods]
 impl PyScene {
     #[new]
-    fn new(background_color: [f32; 4], fps: u8) -> Self {
+    fn new(background_color: [f32; 4], fps: u32) -> Self {
         Self {
             scene: RustScene::new(
                 vec![],
@@ -52,6 +52,7 @@ impl PyScene {
 #[derive(FromPyObject)]
 enum PyAnimObject {
     Line(PyLine),
+    Sphere(PySphere),
     Tetrahedron(PyTetrahedron),
 }
 
@@ -59,6 +60,7 @@ impl From<PyAnimObject> for AnimObject {
     fn from(pyobject: PyAnimObject) -> Self {
         match pyobject {
             PyAnimObject::Line(line) => AnimObject::Line(line.inner),
+            PyAnimObject::Sphere(sphere) => AnimObject::Sphere(sphere.inner),
             PyAnimObject::Tetrahedron(tetrahedron) => AnimObject::Tetrahedron(tetrahedron.inner),
         }
     }
@@ -171,10 +173,10 @@ mod animotion {
     use crate::gpu::run;
 
     #[pymodule_export]
-    use super::{PyLine, PyScene, PyTetrahedron};
+    use super::{PyLine, PyScene, PySphere, PyTetrahedron};
 
     #[pyfunction]
-    fn create_scene(background_color: [f32; 4], fps: u8) -> PyResult<PyScene> {
+    fn create_scene(background_color: [f32; 4], fps: u32) -> PyResult<PyScene> {
         let scene = PyScene::new(background_color, fps);
         Ok(scene)
     }
@@ -191,5 +193,26 @@ mod animotion {
         m.add("E", std::f32::consts::E)?;
 
         Ok(())
+    }
+}
+
+#[pyclass(from_py_object, name = "Sphere")]
+#[derive(Clone)]
+pub struct PySphere {
+    inner: Sphere,
+}
+
+#[pymethods]
+impl PySphere {
+    #[new]
+    fn new(position: [f32; 3], color: [f32; 4], radius: f32, resolution: u32) -> Self {
+        Self {
+            inner: Sphere::new(
+                [position[0], position[0], position[0], 1.0],
+                radius,
+                color,
+                resolution,
+            ),
+        }
     }
 }
